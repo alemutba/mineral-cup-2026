@@ -2,8 +2,8 @@
 
 A static site for running a bracket contest alongside the daily voting at
 [mineralcup.org](https://www.mineralcup.org). Players pick all 31 matches, get
-an eight-character code, and send that code in through a form. You post the
-daily winners and commit one file. No server, no database, no hosting bill.
+an eight-character code, and send that code in through a form. I post the
+daily winners and commit one file. 
 
 ## Why there is no backend
 
@@ -11,10 +11,6 @@ A 32-mineral single-elimination bracket is 31 matches, and every match is a
 binary choice. A complete bracket is therefore exactly 31 bits, which packs
 into 7 base32 characters. An eighth character carries a position-weighted
 checksum, giving codes like `1MZ2-1VCY`.
-
-That one fact removes the need for a server. The bracket travels as a short
-string that a person can type, so collection can be any form you like, and
-scoring is a pure function of the code and the results.
 
 The alphabet is Crockford base32, so there is no `I`, `L`, `O` or `U` to
 confuse anyone, and the decoder silently forgives the common substitutions.
