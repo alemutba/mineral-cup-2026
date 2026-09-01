@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mineral Cup 2026 — organiser console</title>
+    <meta name="robots" content="noindex" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="admin">
+    <header class="masthead">
+      <div class="wrap">
+        <h1>Organiser console</h1>
+        <p class="season">
+          Post each day's winner, import the entries from your form, then
+          download <span class="mono">data.json</span> and commit it. Everything
+          here happens in your browser — nothing is sent anywhere.
+        </p>
+        <div style="padding-bottom: 26px">
+          <a class="btn light" href="index.html">Open the public page</a>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <div class="wrap" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-view="winners">
+          Post winners
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-view="entries">
+          Entries
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-view="settings">
+          Settings
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-view="recap">
+          Weekly recap
+        </button>
+      </div>
+    </nav>
+
+    <main class="wrap">
+      <!-- ------------------------------------------------ winners -->
+      <section class="view" id="view-winners" role="tabpanel">
+        <div class="card">
+          <h2>Today</h2>
+          <div id="todayBox" class="empty-state">Loading.</div>
+        </div>
+        <div id="winnerRounds"></div>
+      </section>
+
+      <!-- ------------------------------------------------ entries -->
+      <section class="view" id="view-entries" role="tabpanel" hidden>
+        <div class="note">
+          <strong>Never paste the email column.</strong>
+          <span class="mono">data.json</span> sits in a public repository.
+          Addresses stay in your form's response workbook, which is private.
+          Copy the name and code columns only.
+        </div>
+
+        <div class="card">
+          <h2>Import from your form</h2>
+          <p>
+            Open the response workbook, select the name and code columns, copy,
+            and paste below. One entry per line. Every code is checked before it
+            is added, and anything that fails is listed rather than silently
+            scored.
+          </p>
+          <div class="field">
+            <label for="importBox">Name and code, tab or comma separated</label>
+            <textarea
+              id="importBox"
+              placeholder="Tadesse Alemu&#9;1MZ2-1VCY&#10;Sam Roberts&#9;P841-MBGC"
+            ></textarea>
+          </div>
+          <div class="toolbar">
+            <button class="btn light" id="importBtn">Import entries</button>
+            <button class="btn ghost" id="replaceBtn" style="border-color: var(--line); color: var(--ink-soft)">
+              Replace all entries
+            </button>
+          </div>
+          <div id="importReport"></div>
+        </div>
+
+        <div class="card">
+          <h2>Current entries <span class="pill" id="entryCount">0</span></h2>
+          <div id="entryTable" class="empty-state">No entries yet.</div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------ settings -->
+      <section class="view" id="view-settings" role="tabpanel" hidden>
+        <div class="card">
+          <h2>Contest settings</h2>
+          <div class="field">
+            <label for="seasonInput">Season name</label>
+            <input type="text" id="seasonInput" />
+          </div>
+          <div class="field">
+            <label for="formInput">Entry form link</label>
+            <input
+              type="url"
+              id="formInput"
+              placeholder="https://forms.office.com/..."
+            />
+          </div>
+          <div class="row two">
+            <div class="field">
+              <label for="startInput">First match date</label>
+              <input type="date" id="startInput" />
+            </div>
+            <div class="field">
+              <label for="perDayInput">Matches per day, round by round</label>
+              <input type="text" id="perDayInput" class="mono" placeholder="2,2,1,1,1" />
+            </div>
+          </div>
+          <p id="scheduleSummary" class="mono" style="font-size: 0.85rem"></p>
+        </div>
+
+        <div class="card">
+          <h2>Load and save</h2>
+          <p>
+            The console reads <span class="mono">data.json</span> when it opens.
+            After posting winners or importing entries, download the file and
+            commit it to the repository. That commit is what updates the public
+            standings.
+          </p>
+          <div class="toolbar">
+            <button class="btn" id="downloadBtn">Download data.json</button>
+            <button class="btn ghost" id="reloadBtn" style="border-color: var(--line); color: var(--ink-soft)">
+              Reload from the repository
+            </button>
+          </div>
+          <div class="field">
+            <label for="pasteBox">Or paste a data.json to work from</label>
+            <textarea id="pasteBox" placeholder='{"season": "..."}'></textarea>
+          </div>
+          <button class="btn light" id="pasteBtn">Load pasted file</button>
+          <div id="loadReport"></div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------ recap -->
+      <section class="view" id="view-recap" role="tabpanel" hidden>
+        <div class="card">
+          <h2>Weekly recap</h2>
+          <p>
+            Generated from the results and standings you have posted. Copy it
+            into your newsletter or social post.
+          </p>
+          <div class="field">
+            <textarea id="recapBox" style="min-height: 280px"></textarea>
+          </div>
+          <div class="toolbar">
+            <button class="btn light" id="recapBtn">Rebuild the recap</button>
+            <button class="btn" id="recapCopy">Copy recap</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+      (function () {
+        var data = normaliseData({});
+        var dates = buildSchedule(data.schedule);
+
+        var el = function (id) {
+          return document.getElementById(id);
+        };
+
+        function escapeHtml(text) {
+          return String(text).replace(/[&<>"']/g, function (c) {
+            return {
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#39;',
+            }[c];
+          });
+        }
+
+        /* ---------------- tabs ---------------- */
+        document.querySelectorAll('.tab').forEach(function (tab) {
+          tab.addEventListener('click', function () {
+            document.querySelectorAll('.tab').forEach(function (t) {
+              t.setAttribute('aria-selected', String(t === tab));
+            });
+            ['winners', 'entries', 'settings', 'recap'].forEach(function (n) {
+              el('view-' + n).hidden = n !== tab.dataset.view;
+            });
+            window.scrollTo({ top: 0, behavior: 'instant' });
+          });
+        });
+
+        /* ---------------- winners ---------------- */
+
+        function setResult(m, side) {
+          if (data.results[m] === side) {
+            data.results[m] = null;
+          } else {
+            data.results[m] = side;
+          }
+          // Anything further up the tree depended on this, so it resets.
+          pathToFinal(m).forEach(function (later) {
+            data.results[later] = null;
+          });
+          data.updated = todayISO();
+          renderWinners();
+        }
+
+        function renderWinners() {
+          var tree = expandBracket(data.results);
+          var open = openMatches(data.results, dates, todayISO());
+          var box = el('todayBox');
+
+          if (!open.length) {
+            var next = data.results.indexOf(null);
+            box.innerHTML =
+              next === -1
+                ? '<p class="ok">Every match is decided. ' +
+                  escapeHtml(tree.winners[TOTAL_MATCHES - 1]) +
+                  ' is the champion.</p>'
+                : '<p>Nothing scheduled for today. Next up is match ' +
+                  (next + 1) +
+                  ' on ' +
+                  prettyDate(dates[next]) +
+                  '.</p>';
+          } else {
+            box.innerHTML = open
+              .map(function (m) {
+                return (
+                  '<p><span class="pill">Match ' +
+                  (m + 1) +
+                  '</span> ' +
+                  escapeHtml(tree.upper[m] || 'to be decided') +
+                  ' against ' +
+                  escapeHtml(tree.lower[m] || 'to be decided') +
+                  '</p>'
+                );
+              })
+              .join('');
+          }
+
+          var host = el('winnerRounds');
+          host.innerHTML = '';
+          for (var r = 0; r < ROUND_SIZES.length; r++) {
+            var section = document.createElement('section');
+            section.className = 'round';
+            var settled = 0;
+            for (var i = 0; i < ROUND_SIZES[r]; i++) {
+              if (data.results[matchAt(r, i)] !== null) settled++;
+            }
+            var head = document.createElement('div');
+            head.className = 'round-head';
+            head.innerHTML =
+              '<h2>' +
+              ROUND_NAMES[r] +
+              '</h2><span class="round-meta">' +
+              settled +
+              ' of ' +
+              ROUND_SIZES[r] +
+              ' decided &middot; tap a winner, tap again to undo</span>';
+            section.appendChild(head);
+
+            var list = document.createElement('div');
+            list.className = 'matches' + (ROUND_SIZES[r] > 2 ? ' wide' : '');
+            for (var k = 0; k < ROUND_SIZES[r]; k++) {
+              list.appendChild(winnerNode(matchAt(r, k), tree));
+            }
+            section.appendChild(list);
+            host.appendChild(section);
+          }
+        }
+
+        function winnerNode(m, tree) {
+          var node = document.createElement('div');
+          node.className = 'match';
+          var no = document.createElement('div');
+          no.className = 'match-no';
+          no.innerHTML =
+            '<span>' +
+            (m + 1) +
+            '</span><span class="day">' +
+            prettyDate(dates[m]).replace(' ', '&nbsp;') +
+            '</span>';
+          node.appendChild(no);
+
+          var sides = document.createElement('div');
+          [0, 1].forEach(function (side) {
+            var name = side === 0 ? tree.upper[m] : tree.lower[m];
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'side' + (data.results[m] === side ? ' actual' : '');
+            if (name) {
+              btn.textContent = name;
+              btn.addEventListener('click', function () {
+                setResult(m, side);
+              });
+            } else {
+              btn.textContent = 'Winner of match ' + (feedersOf(m)[side] + 1);
+              btn.disabled = true;
+            }
+            sides.appendChild(btn);
+          });
+          node.appendChild(sides);
+          return node;
+        }
+
+        /* ---------------- entries ---------------- */
+
+        function parseImport(text) {
+          var added = [];
+          var failed = [];
+          text
+            .split(/\r?\n/)
+            .map(function (line) {
+              return line.trim();
+            })
+            .filter(Boolean)
+            .forEach(function (line) {
+              var parts = line.split(/\t|,(?=[^,]*$)/);
+              if (parts.length < 2) {
+                failed.push({ line: line, why: 'No code found on this line' });
+                return;
+              }
+              var code = parts.pop().trim();
+              var name = parts.join(' ').trim();
+              if (!name) {
+                failed.push({ line: line, why: 'No name found on this line' });
+                return;
+              }
+              if (/@/.test(line)) {
+                failed.push({
+                  line: line,
+                  why: 'Looks like an email address, so it was skipped',
+                });
+                return;
+              }
+              var check = decodeBracket(code);
+              if (!check.ok) {
+                failed.push({ line: line, why: check.reason });
+                return;
+              }
+              added.push({ name: name, code: formatCode(code) });
+            });
+          return { added: added, failed: failed };
+        }
+
+        function doImport(replace) {
+          var parsed = parseImport(el('importBox').value);
+          if (replace) data.entries = [];
+
+          var existing = {};
+          data.entries.forEach(function (e) {
+            existing[e.name.toLowerCase()] = e;
+          });
+
+          var fresh = 0;
+          var updated = 0;
+          parsed.added.forEach(function (entry) {
+            var key = entry.name.toLowerCase();
+            if (existing[key]) {
+              if (existing[key].code !== entry.code) updated++;
+              existing[key].code = entry.code;
+            } else {
+              data.entries.push(entry);
+              existing[key] = entry;
+              fresh++;
+            }
+          });
+
+          var html =
+            '<p class="ok">' +
+            fresh +
+            ' added, ' +
+            updated +
+            ' updated.</p>';
+          if (parsed.failed.length) {
+            html +=
+              '<p class="bad">' +
+              parsed.failed.length +
+              ' line(s) rejected:</p><table><tbody>';
+            parsed.failed.forEach(function (f) {
+              html +=
+                '<tr><td class="mono">' +
+                escapeHtml(f.line.slice(0, 60)) +
+                '</td><td class="bad">' +
+                escapeHtml(f.why) +
+                '</td></tr>';
+            });
+            html += '</tbody></table>';
+          }
+          el('importReport').innerHTML = html;
+          data.updated = todayISO();
+          renderEntries();
+        }
+
+        function renderEntries() {
+          el('entryCount').textContent = data.entries.length;
+          var host = el('entryTable');
+          if (!data.entries.length) {
+            host.className = 'empty-state';
+            host.textContent = 'No entries yet.';
+            return;
+          }
+          host.className = '';
+          var rows = buildStandings(data.entries, data.results);
+          var html =
+            '<table><thead><tr><th>Name</th><th>Code</th>' +
+            '<th>Champion pick</th><th class="num">Score</th><th></th>' +
+            '</tr></thead><tbody>';
+          rows.forEach(function (row) {
+            html +=
+              '<tr><td>' +
+              escapeHtml(row.name) +
+              '</td><td class="mono">' +
+              escapeHtml(row.code) +
+              '</td><td>' +
+              escapeHtml(row.champion || '—') +
+              '</td><td class="num">' +
+              row.score +
+              '</td><td><button class="btn ghost" style="border-color:var(--line);color:var(--ink-soft);padding:4px 10px" data-remove="' +
+              escapeHtml(row.name) +
+              '">Remove</button></td></tr>';
+          });
+          html += '</tbody></table>';
+          host.innerHTML = html;
+
+          host.querySelectorAll('[data-remove]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var name = btn.dataset.remove;
+              data.entries = data.entries.filter(function (e) {
+                return e.name !== name;
+              });
+              renderEntries();
+            });
+          });
+        }
+
+        el('importBtn').addEventListener('click', function () {
+          doImport(false);
+        });
+        el('replaceBtn').addEventListener('click', function () {
+          if (
+            window.confirm('Remove every current entry and import fresh?')
+          ) {
+            doImport(true);
+          }
+        });
+
+        /* ---------------- settings ---------------- */
+
+        function readSettings() {
+          data.season = el('seasonInput').value.trim() || 'Mineral Cup 2026';
+          data.formUrl = el('formInput').value.trim();
+          var perDay = el('perDayInput')
+            .value.split(',')
+            .map(function (n) {
+              return Math.max(1, parseInt(n, 10) || 1);
+            });
+          while (perDay.length < 5) perDay.push(1);
+          data.schedule = {
+            startDate: el('startInput').value || '2026-09-01',
+            perDay: perDay.slice(0, 5),
+          };
+          dates = buildSchedule(data.schedule);
+          el('scheduleSummary').textContent =
+            'First match ' +
+            prettyDate(dates[0]) +
+            ', final ' +
+            prettyDate(dates[TOTAL_MATCHES - 1]) +
+            '.';
+          renderWinners();
+        }
+
+        ['seasonInput', 'formInput', 'startInput', 'perDayInput'].forEach(
+          function (id) {
+            el(id).addEventListener('change', readSettings);
+          }
+        );
+
+        function fillSettings() {
+          el('seasonInput').value = data.season;
+          el('formInput').value = data.formUrl;
+          el('startInput').value = (data.schedule || {}).startDate || '2026-09-01';
+          el('perDayInput').value = ((data.schedule || {}).perDay || [2, 2, 1, 1, 1]).join(',');
+          el('scheduleSummary').textContent =
+            'First match ' +
+            prettyDate(dates[0]) +
+            ', final ' +
+            prettyDate(dates[TOTAL_MATCHES - 1]) +
+            '.';
+        }
+
+        /* ---------------- save & load ---------------- */
+
+        el('downloadBtn').addEventListener('click', function () {
+          data.updated = todayISO();
+          var payload = {
+            season: data.season,
+            formUrl: data.formUrl,
+            schedule: data.schedule,
+            results: data.results,
+            entries: data.entries,
+            updated: data.updated,
+          };
+          var blob = new Blob([JSON.stringify(payload, null, 2)], {
+            type: 'application/json',
+          });
+          var link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'data.json';
+          link.click();
+          URL.revokeObjectURL(link.href);
+        });
+
+        el('reloadBtn').addEventListener('click', boot);
+
+        el('pasteBtn').addEventListener('click', function () {
+          try {
+            data = normaliseData(JSON.parse(el('pasteBox').value));
+            dates = buildSchedule(data.schedule);
+            fillSettings();
+            renderWinners();
+            renderEntries();
+            el('loadReport').innerHTML = '<p class="ok">Loaded.</p>';
+          } catch (err) {
+            el('loadReport').innerHTML =
+              '<p class="bad">That is not valid JSON.</p>';
+          }
+        });
+
+        /* ---------------- recap ---------------- */
+
+        el('recapBtn').addEventListener('click', function () {
+          var tree = expandBracket(data.results);
+          var rows = buildStandings(data.entries, data.results);
+          var lines = [data.season + ' — where things stand', ''];
+
+          var decided = [];
+          for (var m = 0; m < TOTAL_MATCHES; m++) {
+            if (data.results[m] === null) continue;
+            var winner = tree.winners[m];
+            var loser =
+              winner === tree.upper[m] ? tree.lower[m] : tree.upper[m];
+            decided.push({ m: m, winner: winner, loser: loser });
+          }
+
+          var recent = decided.slice(-7);
+          if (recent.length) {
+            lines.push('Results this week');
+            recent.forEach(function (r) {
+              lines.push(
+                '  Match ' + (r.m + 1) + ': ' + r.winner + ' beat ' + r.loser
+              );
+            });
+            lines.push('');
+          }
+
+          var alive = MINERALS.filter(function (name) {
+            return !eliminatedFrom(data.results).has(name);
+          });
+          lines.push('Still standing: ' + alive.length + ' of 32');
+          if (alive.length <= 8) lines.push('  ' + alive.join(', '));
+          lines.push('');
+
+          if (rows.length) {
+            lines.push('Leaderboard');
+            rows.slice(0, 10).forEach(function (row) {
+              lines.push(
+                '  ' +
+                  row.rank +
+                  '. ' +
+                  row.name +
+                  ' — ' +
+                  row.score +
+                  ' points, ' +
+                  row.maxPossible +
+                  ' still possible, champion pick ' +
+                  (row.champion || '—') +
+                  (row.championAlive ? '' : ' (out)')
+              );
+            });
+            lines.push('');
+          }
+
+          var next = data.results.indexOf(null);
+          if (next !== -1) {
+            lines.push(
+              'Next up: match ' +
+                (next + 1) +
+                ' on ' +
+                prettyDate(dates[next]) +
+                ', ' +
+                (tree.upper[next] || 'to be decided') +
+                ' against ' +
+                (tree.lower[next] || 'to be decided') +
+                '.'
+            );
+          } else if (decided.length === TOTAL_MATCHES) {
+            lines.push(
+              'Champion: ' + tree.winners[TOTAL_MATCHES - 1] + '.'
+            );
+          }
+          lines.push('Vote daily at www.MineralCup.org — #MinCup26');
+
+          el('recapBox').value = lines.join('\n');
+        });
+
+        el('recapCopy').addEventListener('click', function () {
+          var box = el('recapBox');
+          box.select();
+          navigator.clipboard.writeText(box.value);
+          this.textContent = 'Copied';
+          var self = this;
+          setTimeout(function () {
+            self.textContent = 'Copy recap';
+          }, 1600);
+        });
+
+        /* ---------------- boot ---------------- */
+
+        function boot() {
+          loadData()
+            .then(function (loaded) {
+              data = loaded;
+              dates = buildSchedule(data.schedule);
+              fillSettings();
+              renderWinners();
+              renderEntries();
+              el('loadReport').innerHTML =
+                '<p class="ok">Loaded data.json from the repository.</p>';
+            })
+            .catch(function () {
+              data = normaliseData({});
+              dates = buildSchedule(data.schedule);
+              fillSettings();
+              renderWinners();
+              renderEntries();
+              el('loadReport').innerHTML =
+                '<p class="bad">No data.json found. Starting from an empty contest.</p>';
+            });
+        }
+
+        boot();
+      })();
+    </script>
+  </body>
+</html>

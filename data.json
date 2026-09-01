@@ -1,0 +1,16 @@
+{
+  "season": "Mineral Cup 2026",
+  "formUrl": "",
+  "schedule": {
+    "startDate": "2026-09-01",
+    "perDay": [2, 2, 1, 1, 1]
+  },
+  "results": [
+    null, null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null, null,
+    null, null, null, null, null, null, null
+  ],
+  "entries": [],
+  "updated": null
+}

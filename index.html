@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mineral Cup 2026 — bracket</title>
+    <meta
+      name="description"
+      content="Pick all 31 matches of the Mineral Cup 2026 bracket, get an 8-character code, and follow the standings through September."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="wrap">
+        <h1>Mineral Cup 2026</h1>
+        <p class="season">
+          Thirty-two minerals, thirty-one matches, one month. Pick every match,
+          copy your code, and send it in before the first vote opens.
+        </p>
+        <div class="crystal-bay">
+          <div class="crystal" id="crystal" aria-hidden="true">
+            <svg viewBox="0 0 108 122">
+              <polygon class="facet facet-a" points="54,2 20,30 54,52" />
+              <polygon class="facet facet-b" points="54,2 88,30 54,52" />
+              <polygon class="facet facet-c" points="20,30 20,90 54,52" />
+              <polygon class="facet facet-b" points="88,30 88,90 54,52" />
+              <polygon class="facet facet-a" points="20,90 54,120 54,52" />
+              <polygon class="facet facet-c" points="88,90 54,120 54,52" />
+            </svg>
+          </div>
+          <div>
+            <div class="champion-label">Your champion</div>
+            <div class="champion-name empty" id="championName">
+              Not picked yet
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <div class="wrap" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-view="pick">
+          Pick your bracket
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-view="standings">
+          Standings
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-view="results">
+          Results
+        </button>
+      </div>
+    </nav>
+
+    <main class="wrap">
+      <!-- ------------------------------------------------ pick -->
+      <section class="view" id="view-pick" role="tabpanel">
+        <div class="card">
+          <h2>How this works</h2>
+          <p>
+            Tap the mineral you think wins each match. Later rounds fill in as
+            you go. When all 31 are picked you get a code like
+            <span class="mono">1MZ2-1VCY</span>. Send that code with your name
+            through the entry form, and the standings here will track it all
+            month.
+          </p>
+          <div class="row two">
+            <div class="field">
+              <label for="loadCode">Already have a code? Paste it to edit</label>
+              <input
+                type="text"
+                id="loadCode"
+                class="mono"
+                placeholder="1MZ2-1VCY"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <div class="field" style="align-self: end">
+              <button class="btn light" id="loadBtn">Load this bracket</button>
+              <button class="btn ghost" id="randomBtn" style="border-color: var(--line); color: var(--ink-soft)">
+                Fill at random
+              </button>
+              <button class="btn ghost" id="clearBtn" style="border-color: var(--line); color: var(--ink-soft)">
+                Start over
+              </button>
+            </div>
+          </div>
+          <div id="loadMsg" aria-live="polite"></div>
+        </div>
+        <div id="rounds"></div>
+      </section>
+
+      <!-- ------------------------------------------------ standings -->
+      <section class="view" id="view-standings" role="tabpanel" hidden>
+        <div class="toolbar">
+          <span class="pill" id="standingsCount">0 entries</span>
+          <span class="pill" id="standingsUpdated">not yet updated</span>
+        </div>
+        <div id="standingsWrap"></div>
+      </section>
+
+      <!-- ------------------------------------------------ results -->
+      <section class="view" id="view-results" role="tabpanel" hidden>
+        <div class="card">
+          <h2>Voting today</h2>
+          <div id="todayList" class="empty-state">Loading the schedule.</div>
+        </div>
+        <div id="resultsRounds"></div>
+      </section>
+    </main>
+
+    <div class="codebar">
+      <div class="wrap">
+        <div class="progress">
+          <div id="progressText">0 of 31 matches picked</div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+        <div class="code-out" id="codeOut">—</div>
+        <button class="btn" id="copyBtn" disabled>Copy code</button>
+        <a class="btn light" id="formBtn" href="#" hidden>Enter the contest</a>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+      (function () {
+        var picks = new Array(TOTAL_MATCHES).fill(null);
+        var data = null;
+        var dates = buildSchedule(null);
+
+        var el = function (id) {
+          return document.getElementById(id);
+        };
+
+        /* ---------------- tabs ---------------- */
+        document.querySelectorAll('.tab').forEach(function (tab) {
+          tab.addEventListener('click', function () {
+            document.querySelectorAll('.tab').forEach(function (t) {
+              t.setAttribute('aria-selected', String(t === tab));
+            });
+            ['pick', 'standings', 'results'].forEach(function (name) {
+              el('view-' + name).hidden = name !== tab.dataset.view;
+            });
+            window.scrollTo({ top: 0, behavior: 'instant' });
+          });
+        });
+
+        /* ---------------- picking ---------------- */
+
+        function choose(match, side) {
+          if (picks[match] === side) return;
+          picks[match] = side;
+          clearDownstream(picks, match);
+          render();
+        }
+
+        function render() {
+          var tree = expandBracket(picks);
+          var host = el('rounds');
+          host.innerHTML = '';
+
+          for (var r = 0; r < ROUND_SIZES.length; r++) {
+            var section = document.createElement('section');
+            section.className = 'round';
+
+            var picked = 0;
+            for (var i = 0; i < ROUND_SIZES[r]; i++) {
+              if (picks[matchAt(r, i)] !== null) picked++;
+            }
+
+            var head = document.createElement('div');
+            head.className = 'round-head';
+            head.innerHTML =
+              '<h2>' +
+              ROUND_NAMES[r] +
+              '</h2><span class="round-meta">' +
+              picked +
+              ' of ' +
+              ROUND_SIZES[r] +
+              ' picked &middot; ' +
+              ROUND_POINTS[r] +
+              (ROUND_POINTS[r] === 1 ? ' point' : ' points') +
+              ' each</span>';
+            section.appendChild(head);
+
+            var list = document.createElement('div');
+            list.className = 'matches' + (ROUND_SIZES[r] > 2 ? ' wide' : '');
+
+            for (var k = 0; k < ROUND_SIZES[r]; k++) {
+              list.appendChild(matchNode(matchAt(r, k), tree));
+            }
+            section.appendChild(list);
+            host.appendChild(section);
+          }
+
+          updateChampion(tree.winners[TOTAL_MATCHES - 1]);
+          updateCodebar();
+        }
+
+        function matchNode(m, tree) {
+          var node = document.createElement('div');
+          node.className = 'match';
+
+          var no = document.createElement('div');
+          no.className = 'match-no';
+          no.innerHTML =
+            '<span>' +
+            (m + 1) +
+            '</span><span class="day">' +
+            prettyDate(dates[m]).replace(' ', '&nbsp;') +
+            '</span>';
+          node.appendChild(no);
+
+          var sides = document.createElement('div');
+          [0, 1].forEach(function (side) {
+            var name = side === 0 ? tree.upper[m] : tree.lower[m];
+            var btn = document.createElement('button');
+            btn.className = 'side' + (picks[m] === side ? ' chosen' : '');
+            btn.type = 'button';
+            if (name) {
+              btn.textContent = name;
+              btn.addEventListener('click', function () {
+                choose(m, side);
+              });
+            } else {
+              btn.textContent = 'Winner of match ' + (feedersOf(m)[side] + 1);
+              btn.disabled = true;
+            }
+            sides.appendChild(btn);
+          });
+          node.appendChild(sides);
+          return node;
+        }
+
+        function updateChampion(name) {
+          var label = el('championName');
+          var crystal = el('crystal');
+          if (name) {
+            label.textContent = name;
+            label.classList.remove('empty');
+            crystal.classList.add('filled');
+          } else {
+            label.textContent = 'Not picked yet';
+            label.classList.add('empty');
+            crystal.classList.remove('filled');
+          }
+        }
+
+        function updateCodebar() {
+          var done = picks.filter(function (p) {
+            return p !== null;
+          }).length;
+          el('progressText').textContent =
+            done + ' of ' + TOTAL_MATCHES + ' matches picked';
+          el('progressFill').style.width = (done / TOTAL_MATCHES) * 100 + '%';
+
+          if (isComplete(picks)) {
+            var code = encodeBracket(picks);
+            el('codeOut').textContent = code;
+            el('copyBtn').disabled = false;
+            el('copyBtn').dataset.code = code;
+          } else {
+            el('codeOut').textContent = '—';
+            el('copyBtn').disabled = true;
+            el('copyBtn').dataset.code = '';
+          }
+        }
+
+        el('copyBtn').addEventListener('click', function () {
+          var code = this.dataset.code;
+          if (!code) return;
+          var self = this;
+          navigator.clipboard.writeText(code).then(
+            function () {
+              self.textContent = 'Copied';
+              setTimeout(function () {
+                self.textContent = 'Copy code';
+              }, 1600);
+            },
+            function () {
+              window.prompt('Copy your code', code);
+            }
+          );
+        });
+
+        el('loadBtn').addEventListener('click', function () {
+          var result = decodeBracket(el('loadCode').value);
+          var msg = el('loadMsg');
+          if (result.ok) {
+            picks = result.picks;
+            msg.innerHTML = '<span class="ok">Bracket loaded.</span>';
+            render();
+          } else {
+            msg.innerHTML = '<span class="bad">' + result.reason + '.</span>';
+          }
+        });
+
+        el('randomBtn').addEventListener('click', function () {
+          picks = Array.from({ length: TOTAL_MATCHES }, function () {
+            return Math.random() < 0.5 ? 0 : 1;
+          });
+          el('loadMsg').innerHTML =
+            '<span class="ok">Random bracket filled. Change anything you disagree with.</span>';
+          render();
+        });
+
+        el('clearBtn').addEventListener('click', function () {
+          picks = new Array(TOTAL_MATCHES).fill(null);
+          el('loadMsg').innerHTML = '';
+          render();
+        });
+
+        /* ---------------- standings ---------------- */
+
+        function renderStandings() {
+          var host = el('standingsWrap');
+          if (!data) {
+            host.innerHTML =
+              '<p class="empty-state">Standings could not be loaded.</p>';
+            return;
+          }
+          el('standingsCount').textContent =
+            data.entries.length +
+            (data.entries.length === 1 ? ' entry' : ' entries');
+          el('standingsUpdated').textContent = data.updated
+            ? 'updated ' + data.updated
+            : 'not yet updated';
+
+          if (!data.entries.length) {
+            host.innerHTML =
+              '<p class="empty-state">No entries yet. Pick a bracket and send in your code.</p>';
+            return;
+          }
+
+          var rows = buildStandings(data.entries, data.results);
+          var html =
+            '<table><thead><tr><th class="num">#</th><th>Name</th>' +
+            '<th>Champion pick</th><th class="num">Score</th>' +
+            '<th class="num">Max</th><th class="num">Correct</th></tr></thead><tbody>';
+
+          rows.forEach(function (row) {
+            html +=
+              '<tr><td class="num rank">' +
+              row.rank +
+              '</td><td>' +
+              escapeHtml(row.name) +
+              (row.valid ? '' : ' <span class="bad">(invalid code)</span>') +
+              '</td><td class="' +
+              (row.championAlive ? 'alive' : 'dead') +
+              '">' +
+              escapeHtml(row.champion || '—') +
+              '</td><td class="num"><strong>' +
+              row.score +
+              '</strong></td><td class="num">' +
+              row.maxPossible +
+              '</td><td class="num">' +
+              row.correct +
+              '/' +
+              row.decided +
+              '</td></tr>';
+          });
+          html += '</tbody></table>';
+          host.innerHTML = html;
+        }
+
+        /* ---------------- results ---------------- */
+
+        function renderResults() {
+          if (!data) return;
+          var tree = expandBracket(data.results);
+          var dead = eliminatedFrom(data.results);
+
+          var open = openMatches(data.results, dates, todayISO());
+          var today = el('todayList');
+          if (!open.length) {
+            today.innerHTML =
+              '<p class="empty-state">Nothing scheduled for today. Check the bracket below for what is coming.</p>';
+          } else {
+            today.innerHTML = open
+              .map(function (m) {
+                var a = tree.upper[m] || 'to be decided';
+                var b = tree.lower[m] || 'to be decided';
+                return (
+                  '<p><span class="pill">Match ' +
+                  (m + 1) +
+                  '</span> <strong>' +
+                  escapeHtml(a) +
+                  '</strong> against <strong>' +
+                  escapeHtml(b) +
+                  '</strong></p>'
+                );
+              })
+              .join('');
+          }
+
+          var host = el('resultsRounds');
+          host.innerHTML = '';
+          for (var r = 0; r < ROUND_SIZES.length; r++) {
+            var section = document.createElement('section');
+            section.className = 'round';
+            var settled = 0;
+            for (var i = 0; i < ROUND_SIZES[r]; i++) {
+              if (data.results[matchAt(r, i)] !== null) settled++;
+            }
+            var head = document.createElement('div');
+            head.className = 'round-head';
+            head.innerHTML =
+              '<h2>' +
+              ROUND_NAMES[r] +
+              '</h2><span class="round-meta">' +
+              settled +
+              ' of ' +
+              ROUND_SIZES[r] +
+              ' decided</span>';
+            section.appendChild(head);
+
+            var list = document.createElement('div');
+            list.className = 'matches' + (ROUND_SIZES[r] > 2 ? ' wide' : '');
+            for (var k = 0; k < ROUND_SIZES[r]; k++) {
+              list.appendChild(resultNode(matchAt(r, k), tree, dead));
+            }
+            section.appendChild(list);
+            host.appendChild(section);
+          }
+        }
+
+        function resultNode(m, tree, dead) {
+          var node = document.createElement('div');
+          node.className = 'match';
+          var no = document.createElement('div');
+          no.className = 'match-no';
+          no.innerHTML =
+            '<span>' +
+            (m + 1) +
+            '</span><span class="day">' +
+            prettyDate(dates[m]).replace(' ', '&nbsp;') +
+            '</span>';
+          node.appendChild(no);
+
+          var sides = document.createElement('div');
+          [0, 1].forEach(function (side) {
+            var name = side === 0 ? tree.upper[m] : tree.lower[m];
+            var div = document.createElement('div');
+            div.className = 'side';
+            if (!name) {
+              div.className += ' side';
+              div.textContent = 'Winner of match ' + (feedersOf(m)[side] + 1);
+              div.style.fontStyle = 'italic';
+              div.style.color = '#9aa8b0';
+            } else {
+              div.textContent = name;
+              if (data.results[m] === side) div.className += ' actual';
+              else if (data.results[m] !== null || dead.has(name))
+                div.className += ' knocked';
+            }
+            sides.appendChild(div);
+          });
+          node.appendChild(sides);
+          return node;
+        }
+
+        function escapeHtml(text) {
+          return String(text).replace(/[&<>"']/g, function (c) {
+            return {
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              '"': '&quot;',
+              "'": '&#39;',
+            }[c];
+          });
+        }
+
+        /* ---------------- boot ---------------- */
+
+        render();
+
+        loadData()
+          .then(function (loaded) {
+            data = loaded;
+            dates = buildSchedule(data.schedule);
+            if (data.formUrl) {
+              var link = el('formBtn');
+              link.href = data.formUrl;
+              link.target = '_blank';
+              link.rel = 'noopener';
+              link.hidden = false;
+            }
+            document.title = data.season + ' — bracket';
+            render();
+            renderStandings();
+            renderResults();
+          })
+          .catch(function () {
+            el('standingsWrap').innerHTML =
+              '<p class="empty-state">Standings are not available yet.</p>';
+            el('todayList').innerHTML =
+              '<p class="empty-state">The schedule is not available yet.</p>';
+          });
+      })();
+    </script>
+  </body>
+</html>
