@@ -1,0 +1,11 @@
+# Local notes about my account and institution, not about the software
+SETUP-NOTES.md
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Downloaded copies of data.json that land in the folder by accident
+data (*).json
+data-*.json

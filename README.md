@@ -35,7 +35,7 @@ quietly scored as somebody else's bracket.
 ## Setup
 
 **1. Put the files in a repository and turn on Pages.**
-Upload all six files to the repository root. Then Settings → Pages → Deploy
+Upload all seven files to the repository root. Then Settings → Pages → Deploy
 from a branch → `main` / `root`. Your site appears at
 `https://<username>.github.io/<repo>/` within a minute or two.
 
@@ -94,26 +94,12 @@ itself by week three.
 
 To change the weighting, edit `ROUND_POINTS` near the top of `app.js`.
 
-## Two things to get right before you start
+## One rule that matters
 
 **Never paste the email column into the import box.** `data.json` lives in a
 public repository, so anything in it is public. Addresses belong in your form's
 response workbook, which is private. The importer refuses any line containing
 an `@` as a backstop, but do not rely on that.
-
-**Use a personal GitHub account, not one signed in through a university-managed
-organisation.** Enterprise-managed accounts can have Pages restricted to
-organisation members, which would lock out exactly the people you are inviting.
-Confirm this before you build the form.
-
-## The one dependency worth checking first
-
-Whether your tenant allows **"Anyone can respond"** on a form. If that option is
-missing from your form's sharing settings, external form sharing has been
-switched off by an administrator and would need enabling. Check it before you
-build anything else, because it is the only part of this design that depends on
-somebody else's permission. If it turns out to be blocked, Google Forms works
-identically for collection and the rest of the site is unchanged.
 
 ## Changing the field
 
