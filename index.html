@@ -89,7 +89,17 @@
           </div>
           <div id="loadMsg" aria-live="polite"></div>
         </div>
-        <div id="rounds"></div>
+
+        <div class="view-toggle" role="group" aria-label="Bracket display">
+          <button type="button" data-mode="tree" aria-pressed="true">Bracket</button>
+          <button type="button" data-mode="list" aria-pressed="false">List</button>
+        </div>
+        <p class="bracket-hint">Scroll sideways to see the whole bracket.</p>
+
+        <div class="bracket-scroll" id="pickTreeWrap">
+          <div class="bracket" id="pickTree"></div>
+        </div>
+        <div id="rounds" hidden></div>
       </section>
 
       <!-- ------------------------------------------------ standings -->
@@ -107,7 +117,17 @@
           <h2>Voting today</h2>
           <div id="todayList" class="empty-state">Loading the schedule.</div>
         </div>
-        <div id="resultsRounds"></div>
+
+        <div class="view-toggle" role="group" aria-label="Results display">
+          <button type="button" data-mode="tree" data-target="results" aria-pressed="true">Bracket</button>
+          <button type="button" data-mode="list" data-target="results" aria-pressed="false">List</button>
+        </div>
+        <p class="bracket-hint">Scroll sideways to see the whole bracket.</p>
+
+        <div class="bracket-scroll" id="resultsTreeWrap">
+          <div class="bracket" id="resultsTree"></div>
+        </div>
+        <div id="resultsRounds" hidden></div>
       </section>
     </main>
 
@@ -146,6 +166,188 @@
               el('view-' + name).hidden = name !== tab.dataset.view;
             });
             window.scrollTo({ top: 0, behavior: 'instant' });
+          });
+        });
+
+        /* ---------------- tree bracket (both pick and results use this) ---------------- */
+
+        var TREE_H = 720; // px, height of one conference column stack
+
+        // Every round split into its left-half and right-half offsets, so the
+        // tree can be drawn as two 16-mineral conferences converging on a
+        // centred final -- the same shape as a printed March Madness bracket.
+        function conferenceMatches(round, side) {
+          var half = ROUND_SIZES[round] / 2;
+          var offsets = [];
+          for (var i = 0; i < half; i++) {
+            offsets.push(side === 'left' ? i : half + i);
+          }
+          return offsets.map(function (o) {
+            return matchAt(round, o);
+          });
+        }
+
+        function centerPct(i, n) {
+          return ((i + 0.5) / n) * 100;
+        }
+
+        // mode: 'pick' uses `picks` + choose(); 'result' uses data.results and
+        // is read only, highlighting the actual winner instead of a selection.
+        function buildBracketTree(host, mode) {
+          host.innerHTML = '';
+          host.style.height = TREE_H + 'px';
+
+          var picksArr = mode === 'pick' ? picks : data.results;
+          var tree = expandBracket(picksArr);
+          var dead = mode === 'result' ? eliminatedFrom(picksArr) : new Set();
+
+          ['left', 'right'].forEach(function (side) {
+            var conf = document.createElement('div');
+            conf.className = 'conference' + (side === 'right' ? ' right' : '');
+            conf.style.height = TREE_H + 'px';
+
+            for (var r = 0; r < 4; r++) {
+              var matches = conferenceMatches(r, side);
+              conf.appendChild(buildColumn(matches, r === 0, mode, tree, dead));
+              if (r < 3) conf.appendChild(buildConnector(r, side));
+            }
+            host.appendChild(conf);
+          });
+
+          var final = document.createElement('div');
+          final.className = 'bfinal';
+          final.innerHTML = '<div class="bfinal-label">Champion</div>';
+          final.appendChild(
+            matchCard(matchAt(4, 0), tree, mode, dead, true)
+          );
+          host.appendChild(final);
+        }
+
+        function buildColumn(matches, isRoundZero, mode, tree, dead) {
+          var col = document.createElement('div');
+          col.className = 'bcol' + (isRoundZero ? ' round-0' : '');
+          col.style.position = 'relative';
+          col.style.height = '100%';
+          col.style.padding = '0 14px';
+
+          matches.forEach(function (m, i) {
+            var wrap = document.createElement('div');
+            wrap.style.position = 'absolute';
+            wrap.style.left = '14px';
+            wrap.style.right = '14px';
+            wrap.style.top = centerPct(i, matches.length) + '%';
+            wrap.style.transform = 'translateY(-50%)';
+            wrap.appendChild(matchCard(m, tree, mode, dead, false));
+            col.appendChild(wrap);
+          });
+          return col;
+        }
+
+        // The thin strip between two match columns: a vertical bar joining
+        // each pair, with short horizontal ticks meeting the cards on either
+        // side. Positions come straight from the maths of a balanced tree, so
+        // a parent's tick always sits exactly between its two children's.
+        function buildConnector(round, side) {
+          var childCount = ROUND_SIZES[round] / 2;
+          var parentCount = ROUND_SIZES[round + 1] / 2;
+          var strip = document.createElement('div');
+          strip.style.position = 'relative';
+          strip.style.width = '28px';
+          strip.style.flex = 'none';
+          strip.style.height = '100%';
+
+          for (var p = 0; p < parentCount; p++) {
+            var topPct = centerPct(2 * p, childCount);
+            var botPct = centerPct(2 * p + 1, childCount);
+            var midPct = centerPct(p, parentCount);
+
+            var bar = document.createElement('div');
+            bar.style.position = 'absolute';
+            bar.style.top = topPct + '%';
+            bar.style.height = botPct - topPct + '%';
+            bar.style.width = '0';
+            bar.style.borderRight = '2px solid var(--line)';
+            bar.style.left = side === 'left' ? '0' : 'auto';
+            bar.style.right = side === 'right' ? '0' : 'auto';
+            strip.appendChild(bar);
+
+            [topPct, botPct].forEach(function (pct) {
+              var tick = document.createElement('div');
+              tick.style.position = 'absolute';
+              tick.style.top = pct + '%';
+              tick.style.width = '14px';
+              tick.style.height = '0';
+              tick.style.borderTop = '2px solid var(--line)';
+              tick.style.left = side === 'left' ? '0' : 'auto';
+              tick.style.right = side === 'right' ? '0' : 'auto';
+              strip.appendChild(tick);
+            });
+
+            var outTick = document.createElement('div');
+            outTick.style.position = 'absolute';
+            outTick.style.top = midPct + '%';
+            outTick.style.width = '14px';
+            outTick.style.height = '0';
+            outTick.style.borderTop = '2px solid var(--line)';
+            outTick.style.left = side === 'left' ? '14px' : 'auto';
+            outTick.style.right = side === 'right' ? '14px' : 'auto';
+            strip.appendChild(outTick);
+          }
+          return strip;
+        }
+
+        function matchCard(m, tree, mode, dead, isFinal) {
+          var card = document.createElement('div');
+          card.className = 'bmatch';
+          [0, 1].forEach(function (side) {
+            var name = side === 0 ? tree.upper[m] : tree.lower[m];
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'bside';
+
+            if (!name) {
+              btn.textContent = isFinal ? 'Not decided yet' : 'TBD';
+              btn.disabled = true;
+              card.appendChild(btn);
+              return;
+            }
+
+            btn.textContent = name;
+
+            if (mode === 'pick') {
+              if (picks[m] === side) btn.classList.add('chosen');
+              btn.addEventListener('click', function () {
+                choose(m, side);
+              });
+            } else {
+              if (data.results[m] === side) btn.classList.add('actual');
+              else if (data.results[m] !== null || dead.has(name)) {
+                btn.classList.add('knocked');
+              }
+              btn.disabled = true;
+            }
+            card.appendChild(btn);
+          });
+          return card;
+        }
+
+        /* view toggles */
+        document.querySelectorAll('.view-toggle').forEach(function (group) {
+          group.querySelectorAll('button').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var target = btn.dataset.target || 'pick';
+              var mode = btn.dataset.mode;
+              group.querySelectorAll('button').forEach(function (b) {
+                b.setAttribute('aria-pressed', String(b === btn));
+              });
+              if (target === 'pick') {
+                el('pickTreeWrap').hidden = mode !== 'tree';
+                el('rounds').hidden = mode !== 'list';
+              } else {
+                el('resultsTreeWrap').hidden = mode !== 'tree';
+                el('resultsRounds').hidden = mode !== 'list';
+              }
+            });
           });
         });
 
@@ -199,6 +401,7 @@
 
           updateChampion(tree.winners[TOTAL_MATCHES - 1]);
           updateCodebar();
+          buildBracketTree(el('pickTree'), 'pick');
         }
 
         function matchNode(m, tree) {
@@ -426,6 +629,8 @@
             section.appendChild(list);
             host.appendChild(section);
           }
+
+          buildBracketTree(el('resultsTree'), 'result');
         }
 
         function resultNode(m, tree, dead) {

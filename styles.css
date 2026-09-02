@@ -300,6 +300,213 @@ button {
   opacity: 0.8;
 }
 
+/* ---------------- tree bracket ---------------- */
+
+.bracket-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 6px;
+  margin: 0 -20px 20px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.bracket-hint {
+  display: none;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  margin: 0 0 10px;
+}
+
+@media (max-width: 900px) {
+  .bracket-hint {
+    display: block;
+  }
+}
+
+.bracket {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  width: max-content;
+  min-width: 100%;
+}
+
+.conference {
+  display: flex;
+}
+
+.conference.right {
+  flex-direction: row-reverse;
+}
+
+.bcol {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 172px;
+  flex: none;
+  padding: 0 14px;
+}
+
+.bcol .bmatch-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* the connector: a horizontal stub off the match, plus (for paired rounds)
+   a vertical bar joining two matches into the stub that feeds the next round */
+.bcol:not(.round-0) .bmatch-wrap::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 0;
+  border-top: 2px solid var(--line);
+}
+
+.conference:not(.right) .bcol:not(.round-0) .bmatch-wrap::before {
+  left: -14px;
+}
+.conference.right .bcol:not(.round-0) .bmatch-wrap::before {
+  right: -14px;
+}
+
+.bpair {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+}
+
+.bpair::after {
+  content: '';
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  width: 0;
+  border-right: 2px solid var(--line);
+}
+
+.conference:not(.right) .bpair::after {
+  right: -14px;
+}
+.conference.right .bpair::after {
+  left: -14px;
+}
+
+.bmatch {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  width: 100%;
+  margin: 7px 0;
+}
+
+.bmatch .bside {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 10px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.bmatch .bside:last-child {
+  border-bottom: 0;
+}
+
+.bmatch .bside:hover:not(:disabled) {
+  background: var(--azurite-tint);
+}
+
+.bmatch .bside:disabled {
+  color: #9aa8b0;
+  font-style: italic;
+  font-weight: 400;
+  cursor: default;
+}
+
+.bmatch .bside.chosen {
+  background: var(--azurite);
+  color: #fff;
+  font-weight: 700;
+}
+
+.bmatch .bside.actual {
+  background: var(--orpiment-tint);
+  box-shadow: inset 3px 0 0 var(--orpiment);
+  font-weight: 700;
+}
+
+.bmatch .bside.knocked {
+  color: #9aa8b0;
+  text-decoration: line-through;
+}
+
+.bfinal {
+  flex: none;
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.bfinal-label {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.bfinal .bmatch {
+  border-color: var(--orpiment);
+  border-width: 2px;
+}
+
+.round-label {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  padding-bottom: 6px;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.view-toggle button {
+  background: var(--panel);
+  border: 0;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border-right: 1px solid var(--line);
+}
+
+.view-toggle button:last-child {
+  border-right: 0;
+}
+
+.view-toggle button[aria-pressed='true'] {
+  background: var(--azurite);
+  color: #fff;
+}
+
 /* ---------------- code bar ---------------- */
 
 .codebar {
