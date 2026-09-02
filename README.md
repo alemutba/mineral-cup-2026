@@ -2,9 +2,7 @@
 
 A static site for running a bracket contest alongside the daily voting at
 [mineralcup.org](https://www.mineralcup.org). Players pick all 31 matches, get
-an eight-character code, and send that code in through a form. I post the
-daily winners and commit one file. 
-
+an eight-character code, and send that code in through a form. 
 ## Why there is no backend
 
 A 32-mineral single-elimination bracket is 31 matches, and every match is a
