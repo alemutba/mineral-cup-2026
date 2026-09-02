@@ -1,6 +1,6 @@
 {
   "season": "Mineral Cup 2026",
-  "formUrl": "",
+  "formUrl": "https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=l4sG3ZN1OEmLMhT67yrx2EyOr05HrWJLgVvytyBbzrdUQTVKRkZDM0dPNzU1TFhERVJaTFowM1ZUSy4u",
   "schedule": {
     "startDate": "2026-09-01",
     "perDay": [
@@ -45,5 +45,5 @@
     null
   ],
   "entries": [],
-  "updated": null
+  "updated": "2026-09-02"
 }
