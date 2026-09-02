@@ -485,7 +485,7 @@
           el('seasonInput').value = data.season;
           el('formInput').value = data.formUrl;
           el('startInput').value = (data.schedule || {}).startDate || '2026-09-01';
-          el('perDayInput').value = ((data.schedule || {}).perDay || [2, 2, 1, 1, 1]).join(',');
+          el('perDayInput').value = ((data.schedule || {}).perDay || [1, 1, 1, 1, 1]).join(',');
           el('scheduleSummary').textContent =
             'First match ' +
             prettyDate(dates[0]) +

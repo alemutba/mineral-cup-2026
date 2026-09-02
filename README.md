@@ -2,13 +2,19 @@
 
 A static site for running a bracket contest alongside the daily voting at
 [mineralcup.org](https://www.mineralcup.org). Players pick all 31 matches, get
-an eight-character code, and send that code in through a form. 
+an eight-character code, and send that code in through a form. You post the
+daily winners and commit one file. No server, no database, no hosting bill.
+
 ## Why there is no backend
 
 A 32-mineral single-elimination bracket is 31 matches, and every match is a
 binary choice. A complete bracket is therefore exactly 31 bits, which packs
 into 7 base32 characters. An eighth character carries a position-weighted
 checksum, giving codes like `1MZ2-1VCY`.
+
+That one fact removes the need for a server. The bracket travels as a short
+string that a person can type, so collection can be any form you like, and
+scoring is a pure function of the code and the results.
 
 The alphabet is Crockford base32, so there is no `I`, `L`, `O` or `U` to
 confuse anyone, and the decoder silently forgives the common substitutions.
@@ -108,10 +114,16 @@ entries.
 ## Adjusting the schedule
 
 In the console, set the first match date and how many matches run per day in
-each round, written as five numbers like `2,2,1,1,1`. The default runs two
-matches a day through the first two rounds and one a day after that, which
-puts the final in the third week of September. The schedule only drives the
-dates shown on the site; it does not gate anything.
+each round, written as five numbers like `1,1,1,1,1`. The default runs one
+match a day for the whole contest, alternating between the left and right
+side of the bracket — top-left, top-right, next-left, next-right — the same
+way a printed bracket fills in, rather than finishing one whole side before
+starting the other. With one match a day that's 31 days from the first match
+to the final. Raise the numbers for the early rounds (say `2,2,1,1,1`) if you
+want the later rounds to land inside a single calendar month.
+
+The schedule only drives the dates shown on the site; it does not gate
+anything.
 
 ## Testing
 
