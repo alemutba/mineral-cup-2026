@@ -10,40 +10,43 @@
  * The field
  * ------------------------------------------------------------------ */
 
-// Bracket order, top to bottom. Matches are (0 v 1), (2 v 3), (4 v 5), ...
+// Bracket order, top to bottom, exactly as printed on the official bracket
+// sheet. Matches are (0 v 1), (2 v 3), (4 v 5), ... -- this is not the same
+// order as a flat alphabetical or PDF-extracted list, because the printed
+// bracket's left/right column layout doesn't survive plain text extraction.
 const MINERALS = [
   'Azurite',
   'Smithsonite',
-  'Graphite',
+  'Sphalerite',
+  'Anorthite',
   'Cuprite',
   'Orpiment',
   'Monazite-(Ce)',
-  'Halite',
+  'Andalusite',
   'Hafnon',
   'Putnisite',
-  'Pyrrhotite',
-  'Cylindrite',
+  'Calcite',
+  'Julienite',
   'Arsenopyrite',
-  'Andalusite',
+  'Halite',
   'Chrysocolla',
   'Xocolatlite',
-  'Pyromorphite',
-  'Riebeckite',
-  'Quartz',
-  'Anorthite',
-  'Sphalerite',
-  'Skutterudite',
   'Erythrite',
-  'Vesuvianite',
+  'Skutterudite',
   'Bournonite',
-  'Gadolinite-(Y)',
+  'Vesuvianite',
+  'Quartz',
   'Asagiite',
   'Stichtite',
-  'Gypsum',
-  'Cassiterite',
-  'Julienite',
-  'Calcite',
   'Talc',
+  'Pyromorphite',
+  'Gypsum',
+  'Pyrrhotite',
+  'Cylindrite',
+  'Riebeckite',
+  'Gadolinite-(Y)',
+  'Cassiterite',
+  'Graphite',
 ];
 
 /* ------------------------------------------------------------------ *
@@ -318,7 +321,22 @@ function buildStandings(entries, results) {
  * matches are voted on each day in each round.
  * ------------------------------------------------------------------ */
 
-const DEFAULT_SCHEDULE = { startDate: '2026-09-01', perDay: [2, 2, 1, 1, 1] };
+const DEFAULT_SCHEDULE = { startDate: '2026-09-01', perDay: [1, 1, 1, 1, 1] };
+
+// Within a round, matches alternate between the left and right conference --
+// left top, right top, left next, right next -- rather than running straight
+// through the left side before touching the right. Round sizes are always
+// even except the final (1 match), which needs no interleaving.
+function interleavedOffsets(size) {
+  if (size <= 1) return [0];
+  const half = size / 2;
+  const order = [];
+  for (let i = 0; i < half; i++) {
+    order.push(i);
+    order.push(half + i);
+  }
+  return order;
+}
 
 function buildSchedule(schedule) {
   const config = schedule || DEFAULT_SCHEDULE;
@@ -330,9 +348,11 @@ function buildSchedule(schedule) {
   let day = 0;
   for (let r = 0; r < ROUND_SIZES.length; r++) {
     const rate = Math.max(1, perDay[r] || 1);
-    for (let k = 0; k < ROUND_SIZES[r]; k++) {
+    const order = interleavedOffsets(ROUND_SIZES[r]);
+    for (let idx = 0; idx < order.length; idx++) {
+      const k = order[idx];
       const d = new Date(start);
-      d.setUTCDate(d.getUTCDate() + day + Math.floor(k / rate));
+      d.setUTCDate(d.getUTCDate() + day + Math.floor(idx / rate));
       dates[matchAt(r, k)] = d.toISOString().slice(0, 10);
     }
     day += Math.ceil(ROUND_SIZES[r] / rate);
@@ -425,6 +445,7 @@ if (typeof module !== 'undefined' && module.exports) {
     scoreEntry,
     buildStandings,
     buildSchedule,
+    interleavedOffsets,
     openMatches,
     emptyResults,
     normaliseData,

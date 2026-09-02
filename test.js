@@ -166,11 +166,48 @@ check('clearing match 0 clears the final', picks[30] === null);
 const dates = A.buildSchedule({ startDate: '2026-09-01', perDay: [2, 2, 1, 1, 1] });
 check('31 dates', dates.length === 31 && dates.every(Boolean));
 check('first match on start date', dates[0] === '2026-09-01');
-check('dates never go backwards', dates.every((d, i) => i === 0 || d >= dates[i - 1]));
+check('dates never go backwards within a round for one conference', (function () {
+  // Match order within a single conference is preserved (only interleaving
+  // *between* left and right changed), so each side's own matches still run
+  // in ascending calendar order.
+  for (let r = 0; r < 4; r++) {
+    const half = A.ROUND_SIZES[r] / 2;
+    for (const side of [0, half]) {
+      for (let i = side; i < side + half - 1; i++) {
+        const a = dates[A.matchAt(r, i)];
+        const b = dates[A.matchAt(r, i + 1)];
+        if (a > b) return false;
+      }
+    }
+  }
+  return true;
+})());
 const last = dates[30];
 check('final lands inside September', last <= '2026-09-30', last);
 const open = A.openMatches(A.emptyResults(), dates, '2026-09-01');
 check('two matches open on day one', open.length === 2, open.length);
+
+/* the schedule alternates left/right, one match a day by default */
+const oneAday = A.buildSchedule({ startDate: '2026-09-01', perDay: [1, 1, 1, 1, 1] });
+const order = [];
+for (let m = 0; m < 31; m++) order.push(m);
+order.sort((a, b) => oneAday[a].localeCompare(oneAday[b]) || a - b);
+const expectedOrder = [
+  0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15,
+  16, 20, 17, 21, 18, 22, 19, 23,
+  24, 26, 25, 27,
+  28, 29,
+  30,
+];
+check(
+  'one-a-day schedule alternates left and right conferences',
+  String(order) === String(expectedOrder),
+  order.join(',')
+);
+check('day 1 is match 1 (left top)', order[0] === 0);
+check('day 2 is match 9 (right top)', order[1] === 8);
+check('day 3 returns to the left side', order[2] === 1);
+check('default schedule is one match a day', String(A.buildSchedule(null)) === String(A.buildSchedule({ startDate: '2026-09-01', perDay: [1, 1, 1, 1, 1] })));
 
 /* --- data normalising ---------------------------------------------- */
 const bad = A.normaliseData({ results: [0, 1, 5, null], entries: [{ name: 'x' }, null] });
