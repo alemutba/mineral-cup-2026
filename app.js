@@ -360,8 +360,27 @@ function buildSchedule(schedule) {
   return dates;
 }
 
+// "Today" is anchored to a fixed timezone rather than each viewer's own
+// clock, so everyone sees the same match on the same calendar day regardless
+// of where they are, and so the day does not flip hours early for viewers
+// west of UTC (raw toISOString() would roll over at 7pm Central).
+const SCHEDULE_TIMEZONE = 'America/Chicago';
+
+function zonedISO(date, timeZone) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  } catch (e) {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return zonedISO(new Date(), SCHEDULE_TIMEZONE);
 }
 
 // The matches scheduled for a given day that have no result yet.
@@ -446,6 +465,8 @@ if (typeof module !== 'undefined' && module.exports) {
     buildStandings,
     buildSchedule,
     interleavedOffsets,
+    todayISO,
+    zonedISO,
     openMatches,
     emptyResults,
     normaliseData,

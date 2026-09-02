@@ -209,6 +209,27 @@ check('day 2 is match 9 (right top)', order[1] === 8);
 check('day 3 returns to the left side', order[2] === 1);
 check('default schedule is one match a day', String(A.buildSchedule(null)) === String(A.buildSchedule({ startDate: '2026-09-01', perDay: [1, 1, 1, 1, 1] })));
 
+/* --- "today" is anchored to Central time, not the viewer's raw UTC clock -- */
+// 11:30pm Central on Sept 2 is already Sept 3 in UTC. The old bug used raw
+// toISOString() and would show tomorrow's match hours early for anyone west
+// of UTC. zonedISO must return the Central calendar date, not the UTC one.
+const lateEvening = new Date('2026-09-02T23:30:00-05:00');
+check(
+  'late evening Central time is still "today" in Chicago',
+  A.zonedISO(lateEvening, 'America/Chicago') === '2026-09-02',
+  A.zonedISO(lateEvening, 'America/Chicago')
+);
+check(
+  'that same instant is already tomorrow in raw UTC',
+  lateEvening.toISOString().slice(0, 10) === '2026-09-03'
+);
+const earlyMorning = new Date('2026-09-02T00:30:00-05:00');
+check(
+  'just after midnight Central rolls over correctly',
+  A.zonedISO(earlyMorning, 'America/Chicago') === '2026-09-02',
+  A.zonedISO(earlyMorning, 'America/Chicago')
+);
+
 /* --- data normalising ---------------------------------------------- */
 const bad = A.normaliseData({ results: [0, 1, 5, null], entries: [{ name: 'x' }, null] });
 check('results padded to 31', bad.results.length === 31);
